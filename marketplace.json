@@ -1,0 +1,18 @@
+{
+  "name": "dev-default-d559e146",
+  "plugins": [
+    {
+      "name": "figma-bridge",
+      "source": "./figma-bridge",
+      "version": "0.2.0",
+      "description": "Read Figma files by link (REST API) and generate/edit UI pages in Figma via a local WebSocket bridge to a companion Figma desktop plugin.",
+      "displayName": "Figma Bridge",
+      "displayName_i18n": {
+        "zh-CN": "Figma 桥接"
+      },
+      "description_i18n": {
+        "zh-CN": "读取 Figma 链接设计稿，AI 生成 UI 页面并通过本地桥接写回 Figma"
+      }
+    }
+  ]
+}

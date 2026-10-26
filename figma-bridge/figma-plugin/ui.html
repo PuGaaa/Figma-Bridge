@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 12px/1.5 -apple-system, system-ui, sans-serif; margin: 0; padding: 10px; color: #1e1e1e; background: #f5f5f5; }
+  .row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #bbb; flex: none; }
+  .dot.on { background: #14ae5c; } .dot.err { background: #f24822; }
+  label { display: block; font-size: 11px; color: #666; margin: 6px 0 2px; }
+  input { width: 100%; box-sizing: border-box; padding: 4px 6px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 12px; }
+  button { margin-top: 8px; width: 100%; padding: 6px; border: 0; border-radius: 6px; background: #18a0fb; color: #fff; font-size: 12px; cursor: pointer; }
+  button.disconnect { background: #888; }
+  #log { margin-top: 8px; font-size: 11px; color: #888; white-space: pre-wrap; word-break: break-all; max-height: 80px; overflow: auto; }
+</style>
+</head>
+<body>
+  <div class="row"><span id="dot" class="dot"></span><span id="status">未连接</span></div>
+  <label>桥接服务地址</label><input id="url" value="ws://localhost:3055">
+  <label>频道</label><input id="channel" value="default">
+  <label>共享密钥（可选，需与服务端 FIGMA_BRIDGE_SECRET 一致）</label><input id="secret" value="" placeholder="留空表示服务端未启用密钥">
+  <button id="btn">连接</button>
+  <div id="log"></div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let ws = null, wantConnect = false, info = null, infoSyncId = null, authFailed = false;
+
+  const log = (s) => { $('log').textContent = s + '\n' + $('log').textContent; };
+  const setStatus = (cls, txt) => { $('dot').className = 'dot ' + cls; $('status').textContent = txt; };
+  const send = (obj) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); };
+
+  function toBase64(bytes) {
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      const part = bytes.subarray ? bytes.subarray(i, i + chunk) : bytes.slice(i, i + chunk);
+      bin += String.fromCharCode.apply(null, part);
+    }
+    return btoa(bin);
+  }
+
+  function connect() {
+    wantConnect = true;
+    const url = $('url').value.trim() || 'ws://localhost:3055';
+    const channel = $('channel').value.trim() || 'default';
+    const secret = $('secret').value.trim();
+    try { ws = new WebSocket(url); } catch (e) { setStatus('err', '地址无效'); return; }
+    ws.onopen = () => {
+      setStatus('on', '已连接 · ' + channel);
+      $('btn').textContent = '断开';
+      $('btn').className = 'disconnect';
+      send({ type: 'hello', channel: channel, secret: secret, client: 'figma-bridge-plugin', info: info });
+      infoSyncId = 'info-' + Date.now();
+      parent.postMessage({ pluginMessage: { id: infoSyncId, command: 'get_file_info', params: {} } }, '*');
+    };
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.type === 'ping') { send({ type: 'pong' }); return; }
+      if (m.type === 'hello_ack') { log('桥接握手成功'); return; }
+      if (m.type === 'auth_error') { authFailed = true; log('密钥校验失败：' + (m.message || '') + '（检查面板密钥与服务端 FIGMA_BRIDGE_SECRET 是否一致）'); return; }
+      if (m.id !== undefined && m.command) parent.postMessage({ pluginMessage: m }, '*');
+    };
+    ws.onclose = () => {
+      setStatus('', authFailed ? '未连接（密钥校验失败，修正后重试）' : '未连接（服务未启动或已断开）');
+      $('btn').textContent = '连接';
+      $('btn').className = '';
+      const retry = wantConnect && !authFailed;
+      ws = null;
+      authFailed = false;
+      if (retry) setTimeout(() => { if (wantConnect && !ws) connect(); }, 2000);
+    };
+    ws.onerror = () => log('连接失败：请先在 ZCode 中启动 figma-bridge 服务（在会话里调用任一 figma-bridge 工具即可拉起），再点击连接。');
+  }
+
+  $('btn').onclick = () => { if (ws) { wantConnect = false; ws.close(); } else connect(); };
+
+  window.onmessage = (ev) => {
+    const m = ev.data && ev.data.pluginMessage;
+    if (!m) return;
+    if (m.type === 'file_info') {
+      info = m.info;
+      if (ws && ws.readyState === 1) send({ type: 'info', info: info });
+      return;
+    }
+    if (m.id !== undefined) {
+      if (infoSyncId && m.id === infoSyncId) {
+        infoSyncId = null;
+        if (m.ok) { info = m.result; if (ws && ws.readyState === 1) send({ type: 'info', info: info }); }
+        return;
+      }
+      if (m.ok && m.result && m.result.bytes) m.result = { base64: toBase64(m.result.bytes) };
+      send(m);
+    }
+  };
+
+  setStatus('', '未连接');
+  parent.postMessage({ pluginMessage: { type: 'file_info_request' } }, '*');
+</script>
+</body>
+</html>

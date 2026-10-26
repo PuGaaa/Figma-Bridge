@@ -1,0 +1,12 @@
+{
+  "name": "Figma Bridge (ZCode)",
+  "id": "zcode.figma.bridge",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "Local development bridge to ws://localhost:3055 operated by the ZCode figma-bridge plugin on the same machine."
+  }
+}

@@ -5,7 +5,7 @@
       "name": "figma-bridge",
       "source": "./figma-bridge",
       "version": "0.2.1",
-      "icon": "./figma-bridge/assets/icon.png",
+      "icon": "https://cdn.jsdelivr.net/gh/PuGaaa/Figma-Bridge@main/figma-bridge/assets/icon.png",
       "description": "Read Figma files by link (REST API) and generate/edit UI pages in Figma via a local WebSocket bridge to a companion Figma desktop plugin.",
       "displayName": "Figma Bridge",
       "displayName_i18n": {

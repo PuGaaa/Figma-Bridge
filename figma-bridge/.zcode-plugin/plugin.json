@@ -1,6 +1,6 @@
 {
   "name": "figma-bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Read Figma files by link (REST API) and generate/edit UI pages in Figma via a local WebSocket bridge to a companion Figma desktop plugin.",
   "author": { "name": "bucida" },
   "skills": "./skills",
